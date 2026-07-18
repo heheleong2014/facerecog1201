@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Room Entry Tracking System</title>
+  <!-- Load Face-API.js and Tailwind CSS -->
+  <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-900 text-white font-sans min-h-screen flex flex-col items-center justify-between p-4 md:p-8">
+
+  <!-- Main Portal Layout (No Registration Here) -->
+  <div id="mainPortal" class="w-full max-w-md bg-gray-800 rounded-2xl p-6 shadow-2xl border border-gray-700 mx-auto my-auto flex flex-col justify-between">
+    
+    <header class="text-center mb-6">
+      <h1 class="text-2xl font-extrabold tracking-wider text-teal-400">ROOM ENTRY PORTAL</h1>
+      <p class="text-gray-400 text-xs mt-1">Facial Verification Required</p>
+    </header>
+
+    <!-- Camera / Video Feed Container -->
+    <div class="relative w-full aspect-video bg-black rounded-xl overflow-hidden border border-gray-600 flex items-center justify-center shadow-inner">
+      <video id="video" class="absolute w-full h-full object-cover" autoplay muted playsinline></video>
+      <div id="loadingMessage" class="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-80 text-xs text-teal-300 font-semibold text-center p-4">
+        <div class="animate-spin rounded-full h-6 w-6 border-b-2 border-teal-400 mb-2"></div>
+        Initializing AI Models...<br>Please hold for 5-10 seconds.
+      </div>
+    </div>
+
+    <!-- Live Status Box -->
+    <div class="my-6 text-center min-h-[72px] flex flex-col justify-center">
+      <div id="statusText" class="text-sm font-bold text-gray-400">Syncing local database...</div>
+      <div id="matchResult" class="text-lg font-extrabold text-teal-400 mt-1"></div>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="space-y-4">
+      <button id="scanBtn" class="w-full bg-teal-500 hover:bg-teal-600 text-black font-bold py-3 rounded-xl shadow-lg transition active:scale-95 hidden">
+        Scan My Face
+      </button>
+    </div>
+
+    <!-- Secure Admin Footer Link -->
+    <footer class="mt-6 text-center">
+      <button onclick="openAdminModal()" class="text-xs text-gray-500 hover:text-gray-300 transition underline tracking-wide">
+        Admin Logs (Owner Only)
+      </button>
+    </footer>
+  </div>
+
+  <!-- Admin Password Verification Modal -->
+  <div id="adminAuthModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 hidden z-40">
+    <div class="bg-gray-800 rounded-2xl p-6 w-full max-w-sm border border-gray-700 shadow-2xl">
+      <h3 class="text-lg font-bold mb-2">Access Secure Dashboard</h3>
+      <p class="text-gray-400 text-xs mb-4">Please input the owner verification credential.</p>
+      <input type="password" id="adminPass" placeholder="Password" class="w-full bg-gray-900 border border-gray-600 rounded-xl p-3 text-sm focus:outline-none focus:border-teal-400 tracking-widest mb-4">
+      <div class="flex justify-end gap-3">
+        <button onclick="closeModal('adminAuthModal')" class="px-4 py-2 text-xs text-gray-400 hover:text-white rounded-lg">Cancel</button>
+        <button onclick="verifyAdminPassword()" class="px-5 py-2 text-xs bg-teal-500 text-black font-bold rounded-lg hover:bg-teal-600">Unlock</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin Log Dashboard Screen (With Secure Registration Built-in) -->
+  <div id="adminDashboard" class="w-full max-w-3xl bg-gray-800 rounded-2xl p-6 shadow-2xl border border-gray-700 mx-auto my-auto hidden flex-col h-[85vh]">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-gray-700 pb-4 mb-4">
+      <div>
+        <h2 class="text-xl font-black text-teal-400 tracking-wide">OWNER ADMIN CONSOLE</h2>
+        <p class="text-gray-400 text-xs">Manage system configurations, users, and logs</p>
+      </div>
+      <div class="flex gap-2 w-full sm:w-auto">
+        <button onclick="clearAllLogs()" class="flex-1 sm:flex-none px-3 py-2 text-xs bg-red-900/40 text-red-300 border border-red-700/50 rounded-lg hover:bg-red-900/60 font-semibold">Clear System Logs</button>
+        <button onclick="closeAdminDashboard()" class="flex-1 sm:flex-none px-4 py-2 text-xs bg-gray-700 text-white rounded-lg hover:bg-gray-600 font-semibold">Exit Console</button>
+      </div>
+    </div>
+
+    <!-- Protected User Registration Section (Now inside Admin View) -->
+    <div class="mb-6 p-4 bg-gray-900 rounded-xl border border-gray-700">
+      <h3 class="text-xs font-bold text-teal-400 uppercase tracking-wider mb-2">Secure Registration Panel</h3>
+      <p class="text-gray-400 text-xs mb-3">Ensure the person is looking directly at the camera feed on the home screen before clicking save.</p>
+      <div class="flex flex-col sm:flex-row gap-3">
+        <input type="text" id="regName" placeholder="Enter Authorized Full Name" class="flex-grow bg-gray-800 text-white border border-gray-600 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-teal-400 placeholder-gray-500">
+        <button id="registerBtn" class="bg-yellow-500 hover:bg-yellow-600 text-black font-bold px-6 py-2 rounded-lg text-sm transition active:scale-95">
+          Save Face & Authorize
+        </button>
+      </div>
+      <div id="adminRegStatus" class="text-xs font-semibold mt-2 text-gray-400"></div>
+    </div>
+
+    <!-- Tabular Spreadsheet View -->
+    <div class="flex-grow overflow-auto rounded-lg border border-gray-700 bg-gray-900">
+      <table class="w-full text-left border-collapse text-sm">
+        <thead class="bg-gray-700 text-gray-200 sticky top-0 text-xs uppercase tracking-wider">
+          <tr>
+            <th class="p-3 border-b border-gray-600">Timestamp (Date & Time)</th>
+            <th class="p-3 border-b border-gray-600">Identified Name</th>
+            <th class="p-3 border-b border-gray-600">Verification Status</th>
+          </tr>
+        </thead>
+        <tbody id="logTableBody" class="divide-y divide-gray-800 text-gray-300">
+          <!-- Dynamic logs go here -->
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    const ADMIN_PASSWORD = "admin123";
+    const video = document.getElementById('video');
+    const statusText = document.getElementById('statusText');
+    const matchResult = document.getElementById('matchResult');
+    const scanBtn = document.getElementById('scanBtn');
+    const adminRegStatus = document.getElementById('adminRegStatus');
+    
+    let db;
+    let labeledFaceDescriptors = [];
+
+    // Initialize HTML5 Local Database (IndexedDB)
+    function initDatabase() {
+      return new Promise((resolve, reject) => {
+        const request = indexedDB.open("RoomAccessSystemDB", 1);
+        request.onupgradeneeded = (e) => {
+          const database = e.target.result;
+          if (!database.objectStoreNames.contains("users")) {
+            database.createObjectStore("users", { keyPath: "name" });
+          }
+          if (!database.objectStoreNames.contains("logs")) {
+            database.createObjectStore("logs", { autoIncrement: true });
+          }
+        };
+        request.onsuccess = (e) => { db = e.target.result; resolve(); };
+        request.onerror = (e) => reject(e.target.error);
+      });
+    }
+
+    // Initialize System Engine
+    async function init() {
+      try {
+        await initDatabase();
+        statusText.innerText = "Loading Facial Recognition AI Framework...";
+        
+        const MODEL_URL = 'https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/';
+        await Promise.all([
+          faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+          faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
+          faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
+        ]);
+        
+        statusText.innerText = "Syncing saved identities...";
+        await loadProfilesFromDB();
+        
+        startCamera();
+      } catch (err) {
+        statusText.innerText = "Error booting system. Ensure you are connected to the internet.";
+        console.error(err);
+      }
+    }
+
+    // Launch hardware viewport camera
+    function startCamera() {
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+        .then(stream => {
+          video.srcObject = stream;
+          document.getElementById('loadingMessage').style.display = 'none';
+          statusText.innerText = "Biometric System Online.";
+          scanBtn.classList.remove('hidden');
+        })
+        .catch(err => {
+          statusText.innerText = "Hardware Blocked! Please grant browser camera access.";
+          console.error(err);
+        });
+    }
+
+    // Pull users out of localized DB
+    function loadProfilesFromDB() {
+      return new Promise((resolve) => {
+        const transaction = db.transaction(["users"], "readonly");
+        const store = transaction.objectStore("users");
+        const request = store.getAll();
+        request.onsuccess = () => {
+          labeledFaceDescriptors = request.result.map(u => {
+            const desc = new Float32Array(u.descriptor);
+            return new faceapi.LabeledFaceDescriptors(u.name, [desc]);
+          });
+          resolve();
+        };
+      });
+    }
+
+    // FACE BIOMETRIC SCANNER
+    scanBtn.addEventListener('click', async () => {
+      matchResult.innerText = "";
+      statusText.innerText = "Analyzing biometric signature... Hold still.";
+      
+      const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+
+      if (!detection) {
+        statusText.innerText = "Scan Failed.";
+        matchResult.innerText = "❌ No Face Detected";
+        matchResult.className = "text-lg font-bold text-red-400 mt-1";
+        return;
+      }
+
+      if (labeledFaceDescriptors.length === 0) {
+        statusText.innerText = "Database Empty.";
+        matchResult.innerText = "Ask owner to register your face template in admin console.";
+        matchResult.className = "text-sm text-yellow-400 mt-1";
+        return;
+      }
+
+      const faceMatcher = new faceapi.FaceMatcher(labeledFaceDescriptors, 0.55); 
+      const bestMatch = faceMatcher.findBestMatch(detection.descriptor);
+
+      if (bestMatch.label === 'unknown') {
+        statusText.innerText = "Security Breach.";
+        matchResult.innerText = "🔒 Access Denied: Unrecognized User";
+        matchResult.className = "text-lg font-bold text-red-500 mt-1";
+      } else {
+        const username = bestMatch.label;
+        
+        statusText.innerText = "Verification Complete.";
+        matchResult.innerText = `🔓 Welcome, ${username}! Access Granted.`;
+        matchResult.className = "text-lg font-bold text-green-400 mt-1";
+        
+        saveLogToDB(username, "Access Granted");
+      }
+    });
+
+    // Save Log inside DB
+    function saveLogToDB(name, status) {
+      const transaction = db.transaction(["logs"], "readwrite");
+      const store = transaction.objectStore("logs");
+      store.add({
+        timestamp: new Date().toLocaleString(),
+        name: name,
+        status: status
+      });
+    }
+
+    // SECURE BIOMETRIC PROFILE CREATION (Only triggers inside Admin Console)
+    document.getElementById('registerBtn').addEventListener('click', async () => {
+      const name = document.getElementById('regName').value.trim();
+      if (!name) {
+        alert("Please enter a name.");
+        return;
+      }
+
+      adminRegStatus.innerText = "Reading camera stream geometry...";
+      adminRegStatus.className = "text-xs font-semibold mt-2 text-yellow-400";
+      
+      const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions())
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+
+      if (!detection) {
+        adminRegStatus.innerText = "Error: Could not scan face. Ensure someone is facing the camera on the home screen.";
+        adminRegStatus.className = "text-xs font-semibold mt-2 text-red-400";
+        return;
+      }
+
+      const transaction = db.transaction(["users"], "readwrite");
+      const store = transaction.objectStore("users");
+      store.put({
+        name: name,
+        descriptor: Array.from(detection.descriptor)
+      });
+
+      transaction.oncomplete = async () => {
+        adminRegStatus.innerText = `Success: Biometric map saved securely for "${name}".`;
+        adminRegStatus.className = "text-xs font-semibold mt-2 text-green-400";
+        document.getElementById('regName').value = "";
+        await loadProfilesFromDB();
+      };
+    });
+
+    // UI Navigation & Modals
+    function openAdminModal() { document.getElementById('adminAuthModal').classList.remove('hidden'); }
+    function closeModal(id) { document.getElementById(id).classList.add('hidden'); document.getElementById('adminPass').value=""; }
+    
+    function verifyAdminPassword() {
+      const input = document.getElementById('adminPass').value;
+      if (input === ADMIN_PASSWORD) {
+        closeModal('adminAuthModal');
+        document.getElementById('mainPortal').classList.add('hidden');
+        document.getElementById('adminDashboard').classList.remove('hidden');
+        adminRegStatus.innerText = ""; // Reset status message
+        renderLogsTable();
+      } else {
+        alert("Verification check failed: Invalid credential layout.");
+      }
+    }
+
+    function closeAdminDashboard() {
+      document.getElementById('adminDashboard').classList.add('hidden');
+      document.getElementById('mainPortal').classList.remove('hidden');
+      statusText.innerText = "Biometric System Online.";
+      matchResult.innerText = "";
+    }
+
+    // Populate Tabular Spreadsheet Logs view
+    function renderLogsTable() {
+      const tbody = document.getElementById('logTableBody');
+      tbody.innerHTML = "";
+      
+      const transaction = db.transaction(["logs"], "readonly");
+      const store = transaction.objectStore("logs");
+      const request = store.getAll();
+      
+      request.onsuccess = () => {
+        const logs = request.result.reverse(); 
+        if(logs.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="3" class="p-4 text-center text-gray-500 text-xs italic">No entries tracked yet.</td></tr>`;
+          return;
+        }
+        logs.forEach(log => {
+          const row = document.createElement('tr');
+          row.className = "hover:bg-gray-800/50 transition border-b border-gray-800";
+          row.innerHTML = `
+            <td class="p-3 font-mono text-xs text-gray-400">${log.timestamp}</td>
+            <td class="p-3 font-bold text-gray-200">${log.name}</td>
+            <td class="p-3 text-xs"><span class="px-2 py-0.5 rounded-full bg-green-950 text-green-400 border border-green-800/40">${log.status}</span></td>
+          `;
+          tbody.appendChild(row);
+        });
+      };
+    }
+
+    function clearAllLogs() {
+      if (confirm("Are you sure you want to permanently delete all tracked entry logs?")) {
+        const transaction = db.transaction(["logs"], "readwrite");
+        const store = transaction.objectStore("logs");
+        store.clear();
+        transaction.oncomplete = () => { renderLogsTable(); };
+      }
+    }
+
+    init();
+  </script>
+</body>
+</html>
