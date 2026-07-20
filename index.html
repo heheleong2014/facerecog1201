@@ -125,11 +125,10 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
     <script>
-        // Global variables for Supabase Configuration
+        // Credentials embedded directly here
         const SUPABASE_URL = "https://knkojtcujkltqubunsfr.supabase.co";
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtua29qdGN1amtsdHF1YnVuc2ZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1MzU5MTcsImV4cCI6MjEwMDExMTkxN30.oeRqucu4LLgtOeFkp2wyK2Od-weoJWb05o4ridgl8w4";
 
-        // Initialize Supabase Client with safe naming variable
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         
         const video = document.getElementById('video');
@@ -140,7 +139,7 @@
         // Start App
         async function init() {
             try {
-                // Swapped to the official stable GitHub pages model host
+                // Pointed explicitly to the working model mirror
                 await faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/gh/vladmandic/face-api/model/');
                 await faceapi.nets.faceLandmarks68Net.loadFromUri('https://cdn.jsdelivr.net/gh/vladmandic/face-api/model/');
                 await faceapi.nets.faceRecognitionNet.loadFromUri('https://cdn.jsdelivr.net/gh/vladmandic/face-api/model/');
@@ -153,12 +152,13 @@
                 console.error(e);
             }
         }
+
         function startVideo() {
             navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
                 .then(stream => {
                     video.srcObject = stream;
                     statusDiv.innerText = "Scanning for faces...";
-                    setInterval(scanFace, 2000); // Scan every 2 seconds
+                    setInterval(scanFace, 2000);
                 })
                 .catch(err => {
                     statusDiv.innerText = "Camera access denied.";
@@ -166,7 +166,6 @@
                 });
         }
 
-        // Scan and Verify Face against Cloud
         async function scanFace() {
             if (!modelsLoaded) return;
 
@@ -180,9 +179,7 @@
             statusDiv.innerText = "Face detected! Matching with database...";
             
             try {
-                // Fetch profiles from Supabase database
                 const { data: profiles, error } = await _supabase.from('profiles').select('*');
-                
                 if (error) throw error;
 
                 let matchFound = false;
@@ -192,8 +189,6 @@
                     for (let profile of profiles) {
                         const savedDescriptor = new Float32Array(JSON.parse(profile.descriptor));
                         const distance = faceapi.euclideanDistance(detection.descriptor, savedDescriptor);
-                        
-                        // Distance lower than 0.6 indicates a reliable match
                         if (distance < 0.6) {
                             matchFound = true;
                             matchedName = profile.name;
@@ -212,22 +207,20 @@
                     await logAccess("Unknown", "Access Denied");
                 }
             } catch (err) {
-                console.error("Database connection error:", err);
+                console.error(err);
                 statusDiv.innerText = "Database connection failed.";
             }
         }
 
-        // Log entry data to Supabase
         async function logAccess(name, status) {
             try {
                 await _supabase.from('logs').insert([{ name: name, status: status, timestamp: new Date() }]);
                 if (isAdminLoggedIn) fetchLogs();
             } catch (err) {
-                console.error("Failed to push log data:", err);
+                console.error(err);
             }
         }
 
-        // Admin Panel Controls
         function toggleAdmin() {
             const panel = document.getElementById('admin-panel');
             panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
@@ -245,23 +238,20 @@
             }
         }
 
-        // Register Face Workflow
         async function registerFace() {
             if (!modelsLoaded) return alert("AI models are still loading.");
             const name = document.getElementById('new-name').value;
             if (!name) return alert("Please enter a name first.");
 
             const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
-            
             if (!detection) return alert("Could not capture face. Look directly at the camera.");
 
             try {
                 const descriptorString = JSON.stringify(Array.from(detection.descriptor));
                 const { error } = await _supabase.from('profiles').insert([{ name: name, descriptor: descriptorString }]);
-                
                 if (error) throw error;
                 
-                alert(`Successfully registered ${name} to the cloud!`);
+                alert(`Successfully registered ${name}!`);
                 document.getElementById('new-name').value = "";
             } catch (err) {
                 console.error(err);
@@ -269,7 +259,6 @@
             }
         }
 
-        // Fetch logs data for display
         async function fetchLogs() {
             try {
                 const { data: logs, error } = await _supabase.from('logs').select('*').order('timestamp', { ascending: false }).limit(10);
@@ -290,7 +279,6 @@
             }
         }
 
-        // Fire application initializing setup
         init();
     </script>
 </body>
