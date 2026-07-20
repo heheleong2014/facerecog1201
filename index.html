@@ -49,10 +49,10 @@
 
     <script>
         // 
-        const SUPABASE_URL = "https://knkojtcujkltqubunsfr.supabase.co/rest/v1/";
+        const SUPABASE_URL = "https://knkojtcujkltqubunsfr.supabase.co";
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtua29qdGN1amtsdHF1YnVuc2ZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1MzU5MTcsImV4cCI6MjEwMDExMTkxN30.oeRqucu4LLgtOeFkp2wyK2Od-weoJWb05o4ridgl8w4";
 
-        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
         const video = document.getElementById('video');
         const statusDiv = document.getElementById('status');
         let modelsLoaded = false;
