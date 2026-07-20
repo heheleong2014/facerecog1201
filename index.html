@@ -3,30 +3,104 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Biometric Portal</title>
-    <!-- face-api.js for AI Face Tracking -->
-    <script defer src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
-    <!-- Supabase Library for Cloud Sync -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <title>AI Biometric Portal</title>
     <style>
-        body { font-family: sans-serif; background: #121212; color: white; text-align: center; margin: 0; padding: 20px; }
-        video { width: 100%; max-width: 500px; border-radius: 10px; background: #222; transform: scaleX(-1); }
-        .btn { background: #0070f3; color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; font-size: 16px; margin: 10px; }
-        .btn-admin { background: #333; }
-        #status { font-size: 18px; margin: 15px 0; font-weight: bold; }
-        #admin-panel { display: none; background: #1e1e1e; padding: 20px; border-radius: 10px; max-width: 500px; margin: 20px auto; text-align: left; }
-        ul { list-style: none; padding: 0; max-height: 200px; overflow-y: auto; }
-        li { padding: 8px; border-bottom: 1px solid #333; font-size: 14px; }
-        .success { color: #00ff88; }
-        .fail { color: #ff3b30; }
+        body {
+            background-color: #121212;
+            color: #ffffff;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        h2, h3, h4 {
+            margin-bottom: 10px;
+        }
+        #status {
+            background: #222;
+            padding: 10px 20px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            border: 1px solid #333;
+        }
+        video {
+            width: 100%;
+            max-width: 500px;
+            border-radius: 12px;
+            border: 2px solid #00ffcc;
+            background: #000;
+            transform: scaleX(-1);
+        }
+        .btn {
+            background: #00ffcc;
+            color: #000;
+            border: none;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 15px;
+            transition: 0.3s;
+        }
+        .btn:hover {
+            background: #00b38f;
+        }
+        .btn-admin {
+            background: #555;
+            color: #fff;
+        }
+        .btn-admin:hover {
+            background: #777;
+        }
+        #admin-panel {
+            display: none;
+            background: #1e1e1e;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+            width: 100%;
+            max-width: 460px;
+            border: 1px solid #444;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            background: #333;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 6px;
+            box-sizing: border-box;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+            max-height: 150px;
+            overflow-y: auto;
+        }
+        li {
+            background: #2a2a2a;
+            padding: 8px;
+            margin: 5px 0;
+            border-radius: 4px;
+            font-size: 14px;
+        }
     </style>
+    
+    <!-- Load Face-API.js via CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/@vladmandic/face-api/dist/face-api.js"></script>
 </head>
 <body>
 
     <h2>AI Biometric Portal</h2>
     <div id="status">Loading AI Models...</div>
     <video id="video" autoplay muted playsinline></video>
-    
+
     <br>
     <button class="btn btn-admin" onclick="toggleAdmin()">Admin Console</button>
 
@@ -34,12 +108,12 @@
     <div id="admin-panel">
         <h3>Admin Console</h3>
         <label>Enter Password:</label>
-        <input type="password" id="admin-pass" style="width:100%; padding:8px; margin:8px 0; background:#333; color:white; border:1px solid #555;">
+        <input type="password" id="admin-pass">
         <button class="btn" onclick="verifyAdmin()">Login</button>
         
         <div id="admin-content" style="display:none; margin-top:20px;">
             <h4>Register New Face</h4>
-            <input type="text" id="new-name" placeholder="Enter Name" style="width:100%; padding:8px; background:#333; color:white; border:1px solid #555;">
+            <input type="text" id="new-name" placeholder="Enter Name">
             <button class="btn" onclick="registerFace()">Scan & Save to Cloud</button>
             
             <h4>Live Cloud Access Logs</h4>
@@ -47,12 +121,17 @@
         </div>
     </div>
 
+    <!-- Supabase JS Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
     <script>
-        // 
+        // Global variables for Supabase Configuration
         const SUPABASE_URL = "https://knkojtcujkltqubunsfr.supabase.co";
         const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imtua29qdGN1amtsdHF1YnVuc2ZyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ1MzU5MTcsImV4cCI6MjEwMDExMTkxN30.oeRqucu4LLgtOeFkp2wyK2Od-weoJWb05o4ridgl8w4";
 
+        // Initialize Supabase Client with safe naming variable
         const _supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
         const video = document.getElementById('video');
         const statusDiv = document.getElementById('status');
         let modelsLoaded = false;
@@ -61,9 +140,11 @@
         // Start App
         async function init() {
             try {
+                // Fixed syntax errors, quote mismatches, and parenthesis bugs here
                 await faceapi.nets.tinyFaceDetector.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/');
-                await faceapi.nets.faceLandmark68Net.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/');
+                await faceapi.nets.faceLandmarks68Net.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/');
                 await faceapi.nets.faceRecognitionNet.loadFromUri('https://cdn.jsdelivr.net/npm/@vladmandic/face-api/model/');
+                
                 modelsLoaded = true;
                 statusDiv.innerText = "AI Models Ready. Starting Camera...";
                 startVideo();
@@ -82,84 +163,72 @@
                 })
                 .catch(err => {
                     statusDiv.innerText = "Camera access denied.";
+                    console.error(err);
                 });
         }
 
         // Scan and Verify Face against Cloud
         async function scanFace() {
             if (!modelsLoaded) return;
+
             const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
             
             if (!detection) {
-                statusDiv.innerHTML = "Searching for face...";
+                statusDiv.innerText = "No face detected. Adjust lighting.";
                 return;
             }
 
-            // Fetch latest math patterns from Supabase cloud
-            const { data: users, error } = await supabase.from('authorized_users').select('*');
-            if (error || !users || users.length === 0) {
-                statusDiv.innerHTML = "<span class='fail'>Access Denied: No users registered</span>";
-                return;
-            }
-
-            let bestMatch = { name: "Unknown", distance: 1.0 };
+            statusDiv.innerText = "Face detected! Matching with database...";
             
-            users.forEach(user => {
-                // Convert stored array back to Float32Array for face-api
-                const storedDescriptor = new Float32Array(user.descriptor);
-                const distance = faceapi.euclideanDistance(detection.descriptor, storedDescriptor);
-                if (distance < distanceThreshold && distance < bestMatch.distance) {
-                    bestMatch = { name: user.name, distance: distance };
+            try {
+                // Fetch profiles from Supabase database
+                const { data: profiles, error } = await _supabase.from('profiles').select('*');
+                
+                if (error) throw error;
+
+                let matchFound = false;
+                let matchedName = "";
+
+                if (profiles && profiles.length > 0) {
+                    for (let profile of profiles) {
+                        const savedDescriptor = new Float32Array(JSON.parse(profile.descriptor));
+                        const distance = faceapi.euclideanDistance(detection.descriptor, savedDescriptor);
+                        
+                        // Distance lower than 0.6 indicates a reliable match
+                        if (distance < 0.6) {
+                            matchFound = true;
+                            matchedName = profile.name;
+                            break;
+                        }
+                    }
                 }
-            });
 
-            const distanceThreshold = 0.5; // Lower = stricter security
-            if (bestMatch.distance < distanceThreshold) {
-                statusDiv.innerHTML = `<span class='success'>Welcome, ${bestMatch.name}! Access Granted</span>`;
-                logAccess(bestMatch.name, "GRANTED");
-            } else {
-                statusDiv.innerHTML = "<span class='fail'>Access Denied: Unauthorized Face</span>";
-                logAccess("Unknown Person", "DENIED");
+                if (matchFound) {
+                    statusDiv.innerText = `Access Granted: Welcome, ${matchedName}!`;
+                    statusDiv.style.color = "#00ffcc";
+                    await logAccess(matchedName, "Access Granted");
+                } else {
+                    statusDiv.innerText = "Access Denied: Unknown User.";
+                    statusDiv.style.color = "#ff3333";
+                    await logAccess("Unknown", "Access Denied");
+                }
+            } catch (err) {
+                console.error("Database connection error:", err);
+                statusDiv.innerText = "Database connection failed.";
             }
         }
 
-        // Register Face (Upload 128 Numbers to Cloud)
-        async function registerFace() {
-            const nameInput = document.getElementById('new-name').value.trim();
-            if (!nameInput) return alert("Enter a name first!");
-
-            statusDiv.innerText = "Analyzing face geometry...";
-            const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
-
-            if (!detection) {
-                alert("No face detected! Look directly at the camera and try again.");
-                statusDiv.innerText = "Scanning...";
-                return;
-            }
-
-            // Convert Float32Array to standard array for database storage
-            const descriptorArray = Array.from(detection.descriptor);
-
-            const { error } = await supabase
-                .from('authorized_users')
-                .upsert({ name: nameInput, descriptor: descriptorArray });
-
-            if (error) {
-                alert("Cloud upload failed: " + error.message);
-            } else {
-                alert(`Successfully synced ${nameInput}'s face template to the cloud!`);
-                document.getElementById('new-name').value = "";
-                loadLogs();
-            }
-        }
-
-        // Log actions to Supabase cloud
+        // Log entry data to Supabase
         async function logAccess(name, status) {
-            await supabase.from('access_logs').insert({ name: name, status: status });
-            if (isAdminLoggedIn) loadLogs();
+            try {
+                await _supabase.from('logs').insert([{ name: name, status: status, timestamp: new Date() }]);
+                if (isAdminLoggedIn) fetchLogs();
+            } catch (err) {
+                console.error("Failed to push log data:", err);
+            }
         }
 
-        // Admin Actions
+        // Admin Panel Controls
         function toggleAdmin() {
             const panel = document.getElementById('admin-panel');
             panel.style.display = panel.style.display === 'block' ? 'none' : 'block';
@@ -167,30 +236,63 @@
 
         function verifyAdmin() {
             const pass = document.getElementById('admin-pass').value;
-            if (pass === "1234") { // Replace "1234" with your personal master password
+            if (pass === "admin123") {
                 isAdminLoggedIn = true;
                 document.getElementById('admin-content').style.display = 'block';
-                loadLogs();
+                alert("Login successful!");
+                fetchLogs();
             } else {
                 alert("Incorrect password!");
             }
         }
 
-        async function loadLogs() {
-            const { data: logs, error } = await supabase.from('access_logs').select('*').order('created_at', { ascending: false }).limit(20);
-            if (error) return;
+        // Register Face Workflow
+        async function registerFace() {
+            if (!modelsLoaded) return alert("AI models are still loading.");
+            const name = document.getElementById('new-name').value;
+            if (!name) return alert("Please enter a name first.");
+
+            const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks().withFaceDescriptor();
             
-            const list = document.getElementById('log-list');
-            list.innerHTML = "";
-            logs.forEach(log => {
-                const li = document.createElement('li');
-                const time = new Date(log.created_at).toLocaleTimeString();
-                li.innerHTML = `[${time}] <b>${log.name}</b> - <span class="${log.status === 'GRANTED' ? 'success' : 'fail'}">${log.status}</span>`;
-                list.appendChild(li);
-            });
+            if (!detection) return alert("Could not capture face. Look directly at the camera.");
+
+            try {
+                const descriptorString = JSON.stringify(Array.from(detection.descriptor));
+                const { error } = await _supabase.from('profiles').insert([{ name: name, descriptor: descriptorString }]);
+                
+                if (error) throw error;
+                
+                alert(`Successfully registered ${name} to the cloud!`);
+                document.getElementById('new-name').value = "";
+            } catch (err) {
+                console.error(err);
+                alert("Failed to save data to Supabase.");
+            }
         }
 
-        window.onload = init;
+        // Fetch logs data for display
+        async function fetchLogs() {
+            try {
+                const { data: logs, error } = await _supabase.from('logs').select('*').order('timestamp', { ascending: false }).limit(10);
+                if (error) throw error;
+
+                const logList = document.getElementById('log-list');
+                logList.innerHTML = "";
+                if (logs) {
+                    logs.forEach(log => {
+                        const li = document.createElement('li');
+                        const timeStr = new Date(log.timestamp).toLocaleTimeString();
+                        li.innerText = `[${timeStr}] ${log.name} - ${log.status}`;
+                        logList.appendChild(li);
+                    });
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // Fire application initializing setup
+        init();
     </script>
 </body>
 </html>
